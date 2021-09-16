@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package device;
+option go_package = "github.com/pomerium/pomerium/pkg/grpc/device";
+
+message WebAuthnOptions {
+  enum Algorithm {
+    UNKNOWN = 0;
+    ES256 = 1;
+    RS256 = 2;
+  }
+  enum Attestation {
+    UNKNOWN = 0;
+    NONE = 1;
+    INDIRECT = 2;
+    DIRECT = 3;
+  }
+  enum AuthenticatorAttachment {
+    UNKNOWN = 0;
+    PLATFORM = 1;
+    CROSS_PLATFORM = 2;
+  }
+  enum UserVerification {
+    UNKNOWN = 0;
+    PREFERRED = 1;
+    DISCOURAGED = 2;
+  }
+  message AuthenticatorSelection {
+    AuthenticatorAttachment authenticator_attachment = 1;
+    bool require_resident_key = 2;
+    UserVerification user_verification = 3;
+  }
+
+  AuthenticatorSelection authenticator_selection = 1;
+  Attestation attestation = 2;
+  repeated Algorithm pub_key_cred_param_algorithms = 3;
+}
+
+message WebAuthnPublicKeyCredential {
+  bytes id = 1;
+  bytes public_key = 2;
+}

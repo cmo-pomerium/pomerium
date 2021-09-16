@@ -93,6 +93,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr.Path("/").Handler(a.requireValidSignatureOnRedirect(a.userInfo))
 	sr.Path("/sign_in").Handler(a.requireValidSignature(a.SignIn))
 	sr.Path("/sign_out").Handler(a.requireValidSignature(a.SignOut))
+	sr.Path("/webauthn").Handler(a.requireValidSignatureOnRedirect(a.WebAuthn))
 }
 
 func (a *Authenticate) mountWellKnown(r *mux.Router) {

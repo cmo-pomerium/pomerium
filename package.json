@@ -1,7 +1,10 @@
 {
   "devDependencies": {
     "@vuepress/plugin-google-analytics": "1.8.2",
+    "esbuild": "^0.12.28",
     "js-yaml": "^4.1.0",
+    "tsc": "^2.0.3",
+    "typescript": "^4.4.3",
     "vuepress": "1.8.2",
     "vuepress-plugin-check-md": "0.0.2",
     "vuepress-plugin-element-tabs": "^0.2.8",
@@ -12,7 +15,9 @@
     "docs:dev": "vuepress dev docs",
     "docs:build": "vuepress build docs",
     "docs:check-md": "vuepress check-md",
-    "console:buildref": "node scripts/generate-console-pages.js"
+    "console:buildref": "node scripts/generate-console-pages.js",
+    "frontend:build": "esbuild ./internal/frontend/assets/ts/webauthn.ts --bundle --outfile=./internal/frontend/assets/js/webauthn-bundle.js --target=es2016",
+    "frontend:watch": "esbuild ./internal/frontend/assets/ts/webauthn.ts --bundle --outfile=./internal/frontend/assets/js/webauthn-bundle.js --target=es2016 --watch"
   },
   "dependencies": {
     "esm": "3.2.25",
