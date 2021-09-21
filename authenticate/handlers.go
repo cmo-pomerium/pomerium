@@ -93,6 +93,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr.Path("/").Handler(a.requireValidSignatureOnRedirect(a.userInfo))
 	sr.Path("/sign_in").Handler(a.requireValidSignature(a.SignIn))
 	sr.Path("/sign_out").Handler(a.requireValidSignature(a.SignOut))
+	a.mountWebAuthn(sr)
 }
 
 func (a *Authenticate) mountWellKnown(r *mux.Router) {
@@ -451,25 +452,20 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 		s.ID = uuid.New().String()
 	}
 
-	isImpersonated := false
-	pbSession, err := session.Get(ctx, state.dataBrokerClient, s.ID)
-	if pbSession.GetImpersonateSessionId() != "" {
-		pbSession, err = session.Get(ctx, state.dataBrokerClient, pbSession.GetImpersonateSessionId())
-		isImpersonated = true
-	}
+	pbSession, isImpersonated, err := a.getCurrentSession(ctx)
 	if err != nil {
 		pbSession = &session.Session{
 			Id: s.ID,
 		}
 	}
 
-	pbUser, err := user.Get(ctx, state.dataBrokerClient, pbSession.GetUserId())
+	pbUser, err := a.getUser(ctx, pbSession.GetUserId())
 	if err != nil {
 		pbUser = &user.User{
 			Id: pbSession.GetUserId(),
 		}
 	}
-	pbDirectoryUser, err := directory.GetUser(ctx, state.dataBrokerClient, pbSession.GetUserId())
+	pbDirectoryUser, err := a.getDirectoryUser(ctx, pbSession.GetUserId())
 	if err != nil {
 		pbDirectoryUser = &directory.User{
 			Id: pbSession.GetUserId(),
@@ -493,6 +489,11 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf("invalid signout url: %w", err)
 	}
 
+	webAuthnURL, err := a.getWebAuthnURL(r)
+	if err != nil {
+		return fmt.Errorf("invalid webauthn url: %w", err)
+	}
+
 	input := map[string]interface{}{
 		"IsImpersonated":  isImpersonated,
 		"State":           s,               // local session state (cookie, header, etc)
@@ -502,6 +503,7 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 		"DirectoryGroups": groups,          // user's groups inferred from idp directory
 		"csrfField":       csrf.TemplateField(r),
 		"SignOutURL":      signoutURL,
+		"WebAuthnURL":     webAuthnURL,
 	}
 	return a.templates.ExecuteTemplate(w, "userInfo.html", input)
 }
@@ -613,4 +615,34 @@ func (a *Authenticate) getSignOutURL(r *http.Request) (*url.URL, error) {
 		}).Encode()
 	}
 	return urlutil.NewSignedURL(a.state.Load().sharedKey, uri).Sign(), nil
+}
+
+func (a *Authenticate) getCurrentSession(ctx context.Context) (s *session.Session, isImpersonated bool, err error) {
+	client := a.state.Load().dataBrokerClient
+
+	sessionState, err := a.getSessionFromCtx(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+
+	isImpersonated = false
+	s, err = session.Get(ctx, client, sessionState.ID)
+	if s.GetImpersonateSessionId() != "" {
+		s, err = session.Get(ctx, client, s.GetImpersonateSessionId())
+		isImpersonated = true
+	}
+
+	return s, isImpersonated, err
+}
+
+func (a *Authenticate) getUser(ctx context.Context, userID string) (*user.User, error) {
+	client := a.state.Load().dataBrokerClient
+
+	return user.Get(ctx, client, userID)
+}
+
+func (a *Authenticate) getDirectoryUser(ctx context.Context, userID string) (*directory.User, error) {
+	client := a.state.Load().dataBrokerClient
+
+	return directory.GetUser(ctx, client, userID)
 }

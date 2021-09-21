@@ -14,6 +14,8 @@ import (
 	"path"
 	"strings"
 	"time"
+
+	"github.com/Masterminds/sprig"
 )
 
 // FS is the frontend assets file system.
@@ -52,36 +54,38 @@ func NewTemplates() (*template.Template, error) {
 		return nil, err
 	}
 
-	t := template.New("pomerium-templates").Funcs(map[string]interface{}{
-		"safeURL": func(arg interface{}) template.URL {
-			return template.URL(fmt.Sprint(arg))
-		},
-		"safeHTML": func(arg interface{}) template.HTML {
-			return template.HTML(fmt.Sprint(arg))
-		},
-		"safeHTMLAttr": func(arg interface{}) template.HTMLAttr {
-			return template.HTMLAttr(fmt.Sprint(arg))
-		},
-		"dataURL": func(p string) template.URL {
-			return dataURLs[strings.TrimPrefix(p, "/.pomerium/assets/")]
-		},
-		"formatTime": func(arg interface{}) string {
-			var tm time.Time
-			switch t := arg.(type) {
-			case float64:
-				tm = time.Unix(int64(t), 0)
-			case int:
-				tm = time.Unix(int64(t), 0)
-			case int64:
-				tm = time.Unix(t, 0)
-			case time.Time:
-				tm = t
-			default:
-				return "<INVALID TIME>"
-			}
-			return tm.Format("2006-01-02 15:04:05 MST")
-		},
-	})
+	t := template.New("pomerium-templates").
+		Funcs(sprig.FuncMap()).
+		Funcs(map[string]interface{}{
+			"safeURL": func(arg interface{}) template.URL {
+				return template.URL(fmt.Sprint(arg))
+			},
+			"safeHTML": func(arg interface{}) template.HTML {
+				return template.HTML(fmt.Sprint(arg))
+			},
+			"safeHTMLAttr": func(arg interface{}) template.HTMLAttr {
+				return template.HTMLAttr(fmt.Sprint(arg))
+			},
+			"dataURL": func(p string) template.URL {
+				return dataURLs[strings.TrimPrefix(p, "/.pomerium/assets/")]
+			},
+			"formatTime": func(arg interface{}) string {
+				var tm time.Time
+				switch t := arg.(type) {
+				case float64:
+					tm = time.Unix(int64(t), 0)
+				case int:
+					tm = time.Unix(int64(t), 0)
+				case int64:
+					tm = time.Unix(t, 0)
+				case time.Time:
+					tm = t
+				default:
+					return "<INVALID TIME>"
+				}
+				return tm.Format("2006-01-02 15:04:05 MST")
+			},
+		})
 
 	err = fs.WalkDir(assetsFS, "html", func(p string, d os.DirEntry, err error) error {
 		if err != nil {

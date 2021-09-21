@@ -1,0 +1,29 @@
+{{define "webauthn.html"}}
+<!DOCTYPE html>
+<html lang="en" charset="utf-8">
+  <head>
+    {{template "header.html"}}
+    <script>
+      window.PomeriumData = {{.Data}}
+    </script>
+    <script src="/.pomerium/assets/js/webauthn-bundle.js"></script>
+  </head>
+
+  <body>
+    <div class="inner">
+      <div class="header clearfix">
+        <div class="heading"></div>
+      </div>
+      <div class="content">
+        <div class="white box">
+          <div class="largestatus">
+            <div class="title-wrapper">
+              <span class="title">WebAuthn Registration</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+{{end}}
