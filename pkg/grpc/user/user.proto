@@ -14,6 +14,8 @@ message Claim {
 message User {
   string version = 1;
   string id = 2;
+  // random 64-byte unique identifier for a user
+  bytes handle = 11;
   string name = 3;
   string email = 4;
   map<string, google.protobuf.ListValue> claims = 9;

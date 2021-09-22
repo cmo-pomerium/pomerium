@@ -11,6 +11,7 @@ import (
 	"net/url"
 
 	"github.com/gorilla/mux"
+	"github.com/pomerium/csrf"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/internal/webauthn"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/device"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -34,6 +36,26 @@ func (a *Authenticate) mountWebAuthn(pomeriumRouter *mux.Router) {
 }
 
 func (a *Authenticate) webAuthn(w http.ResponseWriter, r *http.Request) error {
+	switch {
+	case r.Method == "GET":
+		return a.webAuthnView(w, r)
+	case r.FormValue("action") == "authenticate":
+		return a.webAuthnAuthenticate(w, r)
+	case r.FormValue("action") == "enroll":
+		return a.webAuthnEnroll(w, r)
+	}
+	return httputil.NewError(http.StatusNotFound, errors.New(http.StatusText(http.StatusNotFound)))
+}
+
+func (a *Authenticate) webAuthnAuthenticate(w http.ResponseWriter, r *http.Request) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (a *Authenticate) webAuthnEnroll(w http.ResponseWriter, r *http.Request) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (a *Authenticate) webAuthnView(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
 	deviceTypeParam := r.FormValue(urlutil.QueryDeviceType)
@@ -87,18 +109,26 @@ func (a *Authenticate) webAuthn(w http.ResponseWriter, r *http.Request) error {
 		return errUnsupportedDeviceType
 	}
 
+	selfURL, err := a.getWebAuthnURL(r)
+	if err != nil {
+		return err
+	}
+
+	challenge, err := webauthn.GenerateChallenge(a.state.Load().sharedKey)
+	if err != nil {
+		return err
+	}
+
 	var buf bytes.Buffer
 	err = a.templates.ExecuteTemplate(&buf, "webauthn.html", map[string]interface{}{
+		"csrfField": csrf.TemplateField(r),
 		"Data": &WebAuthnTemplateData{
 			Options:                options,
 			KnownDeviceCredentials: knownDeviceCredentials,
-			Challenge:              []byte{1, 2, 3, 4},
-			User: WebAuthnTemplateDataUser{
-				ID:          []byte{5, 6, 7, 8},
-				Name:        user.GetName(),
-				DisplayName: user.GetName(),
-			},
+			Challenge:              challenge,
+			User:                   webauthn.GetUserEntity(user),
 		},
+		"SelfURL": selfURL.String(),
 	})
 	if err != nil {
 		return err
@@ -108,6 +138,7 @@ func (a *Authenticate) webAuthn(w http.ResponseWriter, r *http.Request) error {
 	w.WriteHeader(http.StatusOK)
 	_, err = io.Copy(w, &buf)
 	return err
+
 }
 
 func (a *Authenticate) getDeviceCredential(ctx context.Context, deviceCredentialID string) (*device.Credential, error) {
@@ -200,16 +231,10 @@ func marshalProtoJSONArray(msgs []proto.Message) ([]byte, error) {
 type (
 	// WebAuthnTemplateData is the data used by the webauthn HTML template.
 	WebAuthnTemplateData struct {
-		Options                *device.WebAuthnOptions  `json:"options"`
-		KnownDeviceCredentials []*device.Credential     `json:"knownDeviceCredentials"`
-		Challenge              []byte                   `json:"challenge"`
-		User                   WebAuthnTemplateDataUser `json:"user"`
-	}
-	// WebAuthnTemplateDataUser is a WebAuthn user.
-	WebAuthnTemplateDataUser struct {
-		ID          []byte `json:"id"`
-		Name        string `json:"name"`
-		DisplayName string `json:"displayName"`
+		Options                *device.WebAuthnOptions `json:"options"`
+		KnownDeviceCredentials []*device.Credential    `json:"knownDeviceCredentials"`
+		Challenge              []byte                  `json:"challenge"`
+		User                   webauthn.UserEntity     `json:"user"`
 	}
 )
 

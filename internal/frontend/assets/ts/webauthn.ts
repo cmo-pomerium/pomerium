@@ -1,4 +1,69 @@
-import { decode } from "base64-arraybuffer";
+import ab2str from "arraybuffer-to-string";
+import { encode, decode } from "base64-arraybuffer";
+
+interface PomeriumCredentialAssertionResponse {
+  id: string;
+  type: string;
+  rawId: string; // base64
+  extensions: unknown;
+  response: {
+    clientDataJSON: string; // json string
+    authenticatorData: string; // base64
+    signature: string; // base64
+    userHandle: string; // base64
+  };
+}
+
+interface PomeriumCredentialAttestationResponse {
+  id: string;
+  type: string;
+  rawId: string; // base64
+  extensions: unknown;
+  response: {
+    clientDataJSON: string; // base64
+    attestationObject: string; // base64
+  };
+}
+
+type PomeriumCredentialResponse =
+  | PomeriumCredentialAssertionResponse
+  | PomeriumCredentialAttestationResponse;
+
+function toPomeriumCredentialResponse(
+  credential: PublicKeyCredential
+): PomeriumCredentialResponse {
+  const result: PomeriumCredentialResponse = {
+    id: credential.id,
+    type: credential.type,
+    rawId: encode(credential.rawId),
+    extensions: credential.getClientExtensionResults(),
+    response: null,
+  };
+  if ("attestationObject" in credential.response) {
+    result.response = {
+      clientDataJSON: ab2str(credential.response.clientDataJSON),
+      attestationObject: encode(
+        (credential.response as AuthenticatorAttestationResponse)
+          .attestationObject
+      ),
+    };
+  } else {
+    result.response = {
+      clientDataJSON: ab2str(credential.response.clientDataJSON),
+      authenticatorData: encode(
+        (credential.response as AuthenticatorAssertionResponse)
+          .authenticatorData
+      ),
+      signature: encode(
+        (credential.response as AuthenticatorAssertionResponse).signature
+      ),
+      userHandle: encode(
+        (credential.response as AuthenticatorAssertionResponse).userHandle
+      ),
+    };
+  }
+  return result;
+}
 
 interface PomeriumData {
   options: {
@@ -17,6 +82,10 @@ interface PomeriumData {
     name: string;
     displayName: string;
   };
+}
+
+function getInput(id: string): HTMLInputElement {
+  return document.getElementById(id) as HTMLInputElement;
 }
 
 function toPublicKeyCredentialCreationOptions(
@@ -71,11 +140,19 @@ function toPublicKeyCredentialCreationOptions(
   };
 }
 
+async function submitForm(action: string, credential: PublicKeyCredential) {
+  const credentialResponse = toPomeriumCredentialResponse(credential);
+  getInput("action").value = action;
+  getInput("credential_response").value = JSON.stringify(credentialResponse);
+  //(document.getElementById("webauthn_form") as HTMLFormElement).submit();
+  console.log("RESPONSE", credentialResponse);
+}
+
 async function registerNewDeviceCredential(data: PomeriumData) {
-  const res = await navigator.credentials.create({
+  const credential = await navigator.credentials.create({
     publicKey: toPublicKeyCredentialCreationOptions(data),
   });
-  console.log("RESULT", res);
+  await submitForm("enroll", credential as PublicKeyCredential);
 }
 
 async function authenticateExistingDeviceCredential(data: PomeriumData) {

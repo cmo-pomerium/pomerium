@@ -4,7 +4,7 @@
   <head>
     {{template "header.html"}}
     <script>
-      window.PomeriumData = {{.Data}}
+      window.PomeriumData = {{.Data}};
     </script>
     <script src="/.pomerium/assets/js/webauthn-bundle.js"></script>
   </head>
@@ -24,6 +24,12 @@
         </div>
       </div>
     </div>
+
+    <form method="POST" action="{{.SelfURL}}" id="webauthn_form">
+      {{.csrfField}}
+      <input type="hidden" id="action" name="action" />
+      <input type="hidden" id="credential_response" />
+    </form>
   </body>
 </html>
 {{end}}

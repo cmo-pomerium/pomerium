@@ -17,10 +17,11 @@
     "docs:build": "vuepress build docs",
     "docs:check-md": "vuepress check-md",
     "console:buildref": "node scripts/generate-console-pages.js",
-    "frontend:build": "esbuild ./internal/frontend/assets/ts/webauthn.ts --bundle --outfile=./internal/frontend/assets/js/webauthn-bundle.js --target=es2016",
-    "frontend:watch": "esbuild ./internal/frontend/assets/ts/webauthn.ts --bundle --outfile=./internal/frontend/assets/js/webauthn-bundle.js --target=es2016 --watch"
+    "frontend:build": "esbuild ./internal/frontend/assets/ts/webauthn.ts --define:global=window --bundle --outfile=./internal/frontend/assets/js/webauthn-bundle.js --target=es2016",
+    "frontend:watch": "esbuild ./internal/frontend/assets/ts/webauthn.ts --define:global=window --bundle --outfile=./internal/frontend/assets/js/webauthn-bundle.js --target=es2016 --watch"
   },
   "dependencies": {
+    "arraybuffer-to-string": "^1.0.2",
     "esm": "3.2.25",
     "markdown-it-include": "^2.0.0",
     "vuepress-plugin-code-copy": "^1.0.6"

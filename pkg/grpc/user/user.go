@@ -3,7 +3,9 @@ package user
 
 import (
 	context "context"
+	"crypto/rand"
 	"fmt"
+	"io"
 
 	"google.golang.org/protobuf/types/known/structpb"
 
@@ -29,11 +31,28 @@ func Get(ctx context.Context, client databroker.DataBrokerServiceClient, userID 
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling user from databroker: %w", err)
 	}
+
+	if len(u.Handle) == 0 {
+		_, err = Put(ctx, client, &u)
+		if err != nil {
+			return nil, fmt.Errorf("error updating user with random handle: %w", err)
+		}
+	}
+
 	return &u, nil
 }
 
 // Put sets a user in the databroker.
 func Put(ctx context.Context, client databroker.DataBrokerServiceClient, u *User) (*databroker.Record, error) {
+	// Generate a random handle for the user.
+	if len(u.Handle) != 64 {
+		u.Handle = make([]byte, 64)
+		_, err := io.ReadFull(rand.Reader, u.Handle)
+		if err != nil {
+			panic("error generating random user handle: " + err.Error())
+		}
+	}
+
 	any := protoutil.NewAny(u)
 	res, err := client.Put(ctx, &databroker.PutRequest{
 		Record: &databroker.Record{
